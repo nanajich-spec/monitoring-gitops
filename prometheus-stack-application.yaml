@@ -122,6 +122,12 @@ spec:
             limits:
               memory: 512Mi
               cpu: 500m
+          # Disable sidecar containers (SSL cert issues with Python 3.14)
+          sidecar:
+            dashboards:
+              enabled: false
+            datasources:
+              enabled: false
           datasources:
             datasources.yaml:
               apiVersion: 1

@@ -112,21 +112,14 @@ spec:
           persistence:
             enabled: true
             size: 10Gi
-          # Disable init container chown to avoid permission issues
+          # Disable init container chown to avoid permission issues in MicroK8s
           initChownData:
             enabled: false
-          # Custom init container that skips chown operation
-          extraInitContainers:
-            - name: init-chown-data
-              image: busybox:1.37.0
-              command: ["sh", "-c", "echo 'Skipping chown for MicroK8s compatibility' && exit 0"]
-              securityContext:
-                runAsNonRoot: false
-                runAsUser: 0
-                seccompProfile:
-                  type: RuntimeDefault
+          # Configure test framework to be disabled
+          testFramework:
+            enabled: false
           # Security context for Grafana pod
-          securityContext:
+          podSecurityContext:
             fsGroup: 472
             runAsUser: 472
             runAsNonRoot: true

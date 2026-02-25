@@ -96,8 +96,11 @@ grafana:
   initChownData:
     enabled: false
   persistence:
-    enabled: true
-    size: 10Gi
+    enabled: false
+  securityContext:
+    runAsUser: 472
+    runAsGroup: 472
+    fsGroup: 472
   service:
     type: NodePort
     nodePort: 30030

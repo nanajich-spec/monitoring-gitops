@@ -1,0 +1,75 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: airflow-alerts
+  namespace: monitoring
+  labels:
+    prometheus: kube-prometheus
+    app: kube-prometheus-stack
+spec:
+  groups:
+  - name: airflow
+    interval: 30s
+    rules:
+    - alert: AirflowSchedulerDown
+      expr: up{job="airflow-scheduler"} == 0
+      for: 5m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Airflow Scheduler is down"
+        description: "Airflow Scheduler has been down for more than 5 minutes."
+    
+    - alert: AirflowWebserverDown
+      expr: up{job="airflow-webserver"} == 0
+      for: 5m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Airflow Webserver is down"
+        description: "Airflow Webserver has been down for more than 5 minutes."
+    
+    - alert: AirflowDAGFailureRateHigh
+      expr: rate(airflow_dag_failed_total[5m]) > 0.1
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High DAG failure rate"
+        description: "DAG {{ $labels.dag_id }} has high failure rate."
+    
+    - alert: AirflowTaskQueueTooLong
+      expr: airflow_executor_queued_tasks > 100
+      for: 10m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Airflow task queue too long"
+        description: "Task queue has {{ $value }} tasks queued for more than 10 minutes."
+    
+    - alert: AirflowWorkerHighCPU
+      expr: rate(container_cpu_usage_seconds_total{pod=~"airflow-worker.*"}[5m]) > 0.8
+      for: 10m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Airflow worker high CPU"
+        description: "Worker {{ $labels.pod }} CPU usage is above 80%."
+    
+    - alert: AirflowWorkerHighMemory
+      expr: container_memory_usage_bytes{pod=~"airflow-worker.*"} / container_spec_memory_limit_bytes{pod=~"airflow-worker.*"} > 0.85
+      for: 10m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Airflow worker high memory"
+        description: "Worker {{ $labels.pod }} memory usage is above 85%."
+    
+    - alert: AirflowDatabaseDown
+      expr: up{job="airflow-postgresql"} == 0
+      for: 3m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Airflow database is down"
+        description: "Airflow PostgreSQL database has been down for more than 3 minutes."

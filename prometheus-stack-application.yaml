@@ -112,8 +112,25 @@ spec:
           persistence:
             enabled: true
             size: 10Gi
+          # Disable init container chown to avoid permission issues
           initChownData:
             enabled: false
+          # Custom init container that skips chown operation
+          extraInitContainers:
+            - name: init-chown-data
+              image: busybox:1.37.0
+              command: ["sh", "-c", "echo 'Skipping chown for MicroK8s compatibility' && exit 0"]
+              securityContext:
+                runAsNonRoot: false
+                runAsUser: 0
+                seccompProfile:
+                  type: RuntimeDefault
+          # Security context for Grafana pod
+          securityContext:
+            fsGroup: 472
+            runAsUser: 472
+            runAsNonRoot: true
+            fsGroupChangePolicy: OnRootMismatch
           service:
             type: NodePort
             nodePort: 30030
@@ -124,12 +141,28 @@ spec:
             limits:
               memory: 512Mi
               cpu: 500m
-          # Disable sidecar containers (SSL cert issues with Python 3.14)
+          # Enable sidecar containers with SSL fix for MicroK8s
           sidecar:
             dashboards:
-              enabled: false
+              enabled: true
+              label: grafana_dashboard
+              searchNamespace: ALL
+              provider:
+                foldersFromFilesStructure: true
+              extraEnv:
+                - name: SKIP_TLS_VERIFY
+                  value: "true"
+                - name: IGNORE_ALREADY_PROCESSED
+                  value: "true"
             datasources:
-              enabled: false
+              enabled: true
+              label: grafana_datasource
+              searchNamespace: ALL
+              extraEnv:
+                - name: SKIP_TLS_VERIFY
+                  value: "true"
+                - name: IGNORE_ALREADY_PROCESSED
+                  value: "true"
           datasources:
             datasources.yaml:
               apiVersion: 1

@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: grafana-alertmanager-datasource
+  namespace: monitoring
+  labels:
+    grafana_datasource: "1"
+type: Opaque
+stringData:
+  alertmanager-datasource.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Alertmanager
+        type: alertmanager
+        access: proxy
+        url: http://prometheus-stack-kube-prom-alertmanager:9093
+        jsonData:
+          implementation: prometheus
+        isDefault: false
+        editable: true

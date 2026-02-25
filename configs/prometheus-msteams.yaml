@@ -36,9 +36,14 @@ spec:
         env:
         - name: CONFIG_FILE
           value: /config/config.yaml
+        - name: SSL_CERT_DIR
+          value: /etc/ssl/certs
         volumeMounts:
         - name: config
           mountPath: /config
+        - name: ca-certs
+          mountPath: /etc/ssl/certs
+          readOnly: true
         resources:
           requests:
             memory: 64Mi
@@ -50,6 +55,10 @@ spec:
       - name: config
         configMap:
           name: prometheus-msteams-config
+      - name: ca-certs
+        hostPath:
+          path: /etc/ssl/certs
+          type: Directory
 ---
 apiVersion: v1
 kind: Service

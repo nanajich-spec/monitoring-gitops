@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasources
+  namespace: monitoring
+  labels:
+    grafana_datasource: "1"
+data:
+  datasources.yaml: |
+    apiVersion: 1
+    datasources:
+    - name: Prometheus
+      type: prometheus
+      access: proxy
+      url: http://prometheus-stack-kube-prom-prometheus:9090
+      isDefault: true
+      editable: true
+      jsonData:
+        timeInterval: 30s
+    - name: Alertmanager
+      type: alertmanager
+      access: proxy
+      url: http://prometheus-stack-kube-prom-alertmanager:9093
+      editable: true
+      jsonData:
+        implementation: prometheus

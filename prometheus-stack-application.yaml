@@ -112,6 +112,8 @@ spec:
           persistence:
             enabled: true
             size: 10Gi
+          initChownData:
+            enabled: false
           service:
             type: NodePort
             nodePort: 30030

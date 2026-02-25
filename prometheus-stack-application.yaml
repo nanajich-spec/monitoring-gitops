@@ -272,6 +272,16 @@ spec:
     server: https://kubernetes.default.svc
     namespace: monitoring
   
+  # Ignore differences for manual patches to Grafana deployment
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      name: prometheus-stack-grafana
+      jsonPointers:
+        - /spec/template/spec/initContainers/0/command
+        - /spec/template/spec/containers/1/env
+        - /spec/template/spec/containers/2/env
+  
   syncPolicy:
     automated:
       prune: true
@@ -280,6 +290,7 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
+      - RespectIgnoreDifferences=true
     retry:
       limit: 5
       backoff:

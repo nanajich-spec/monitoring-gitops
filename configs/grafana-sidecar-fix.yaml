@@ -1,0 +1,48 @@
+# Grafana Sidecar SSL Fix for MicroK8s
+# 
+# Problem: Grafana sidecar containers (grafana-sc-dashboard and grafana-sc-datasources) 
+# were failing with SSL certificate verification errors when connecting to Kubernetes API.
+#
+# Error: SSLCertVerificationError: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: 
+# CA cert does not include key usage extension
+#
+# Solution: Set SKIP_TLS_VERIFY=true environment variable for sidecar containers
+#
+# Apply with:
+# microk8s kubectl patch deployment -n monitoring prometheus-stack-grafana --patch-file grafana-sidecar-fix.yaml
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus-stack-grafana
+  namespace: monitoring
+spec:
+  template:
+    spec:
+      # Fix init container permission issues
+      initContainers:
+      - name: init-chown-data
+        command: ["sh", "-c", "echo Skipping chown && exit 0"]
+      
+      # Fix security context for proper permissions
+      securityContext:
+        fsGroup: 472
+        runAsUser: 472
+        runAsNonRoot: true
+        fsGroupChangePolicy: OnRootMismatch
+      
+      # Add SKIP_TLS_VERIFY to sidecar containers
+      containers:
+      - name: grafana-sc-dashboard
+        env:
+        - name: IGNORE_ALREADY_PROCESSED
+          value: "true"
+        - name: SKIP_TLS_VERIFY
+          value: "true"
+      
+      - name: grafana-sc-datasources
+        env:
+        - name: IGNORE_ALREADY_PROCESSED
+          value: "true"
+        - name: SKIP_TLS_VERIFY
+          value: "true"

@@ -1,0 +1,252 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: prometheus-stack
+  namespace: argocd
+spec:
+  project: default
+  source:
+    chart: kube-prometheus-stack
+    repoURL: https://prometheus-community.github.io/helm-charts
+    targetRevision: 82.4.0
+    helm:
+      releaseName: prometheus-stack
+      values: |
+        ## Production-Grade Prometheus Stack with Teams Notifications
+        
+        alertmanager:
+          enabled: true
+          config:
+            global:
+              resolve_timeout: 5m
+            route:
+              receiver: 'teams-notifications'
+              group_by: ['alertname', 'cluster', 'service', 'namespace']
+              group_wait: 30s
+              group_interval: 5m
+              repeat_interval: 4h
+              routes:
+              - receiver: 'null'
+                matchers:
+                - alertname="Watchdog"
+                - alertname="InfoInhibitor"
+              - receiver: 'teams-notifications'
+                matchers:
+                - severity=~"warning|critical"
+                continue: true
+            receivers:
+            - name: 'null'
+            - name: 'teams-notifications'
+              webhook_configs:
+              - url: 'https://myadvantest.webhook.office.com/webhookb2/abc559ed-5a14-4890-8f65-e7e8d1f27414@b0de9dff-4833-4d4f-b442-1e0dbfae2ec8/IncomingWebhook/d3a2cd1b62694999982ac8303d9facb2/cc25c079-475a-47ee-bfef-0b06ac15a4ad/V2I_NtY59R7qGhSRQY10oyJKLK7OwXK_g6ieRsfhQ3jmY1'
+                send_resolved: true
+                http_config:
+                  follow_redirects: true
+            inhibit_rules:
+            - source_matchers:
+              - severity="critical"
+              target_matchers:
+              - severity=~"warning|info"
+              equal:
+              - namespace
+              - alertname
+            - source_matchers:
+              - severity="warning"
+              target_matchers:
+              - severity="info"
+              equal:
+              - namespace
+              - alertname
+          alertmanagerSpec:
+            retention: 120h
+            storage:
+              volumeClaimTemplate:
+                spec:
+                  accessModes: ["ReadWriteOnce"]
+                  resources:
+                    requests:
+                      storage: 10Gi
+            resources:
+              requests:
+                memory: 256Mi
+                cpu: 100m
+              limits:
+                memory: 512Mi
+                cpu: 500m
+          service:
+            type: NodePort
+            nodePort: 30093
+        
+        prometheus:
+          enabled: true
+          prometheusSpec:
+            retention: 15d
+            retentionSize: "18GB"
+            storageSpec:
+              volumeClaimTemplate:
+                spec:
+                  accessModes: ["ReadWriteOnce"]
+                  resources:
+                    requests:
+                      storage: 20Gi
+            serviceMonitorSelectorNilUsesHelmValues: false
+            ruleSelectorNilUsesHelmValues: false
+            podMonitorSelectorNilUsesHelmValues: false
+            probeSelectorNilUsesHelmValues: false
+            resources:
+              requests:
+                memory: 2Gi
+                cpu: 500m
+              limits:
+                memory: 4Gi
+                cpu: 2000m
+          service:
+            type: NodePort
+            nodePort: 30090
+        
+        grafana:
+          enabled: true
+          adminPassword: admin
+          persistence:
+            enabled: true
+            size: 10Gi
+          service:
+            type: NodePort
+            nodePort: 30030
+          resources:
+            requests:
+              memory: 256Mi
+              cpu: 100m
+            limits:
+              memory: 512Mi
+              cpu: 500m
+          datasources:
+            datasources.yaml:
+              apiVersion: 1
+              datasources:
+              - name: Prometheus
+                type: prometheus
+                url: http://prometheus-stack-kube-prom-prometheus:9090
+                access: proxy
+                isDefault: true
+                jsonData:
+                  timeInterval: 30s
+          dashboardProviders:
+            dashboardproviders.yaml:
+              apiVersion: 1
+              providers:
+              - name: 'kubernetes'
+                orgId: 1
+                folder: 'Kubernetes'
+                type: file
+                disableDeletion: false
+                editable: true
+                options:
+                  path: /var/lib/grafana/dashboards/kubernetes
+              - name: 'airflow'
+                orgId: 1
+                folder: 'Airflow'
+                type: file
+                disableDeletion: false
+                editable: true
+                options:
+                  path: /var/lib/grafana/dashboards/airflow
+          dashboards:
+            kubernetes:
+              cluster:
+                gnetId: 7249
+                revision: 1
+                datasource: Prometheus
+              pods:
+                gnetId: 6417
+                revision: 1
+                datasource: Prometheus
+              capacity:
+                gnetId: 5309
+                revision: 1
+                datasource: Prometheus
+            airflow:
+              overview:
+                gnetId: 14731
+                revision: 1
+                datasource: Prometheus
+        
+        nodeExporter:
+          enabled: false
+        
+        prometheus-node-exporter:
+          enabled: false
+        
+        kube-state-metrics:
+          enabled: true
+          resources:
+            requests:
+              memory: 128Mi
+              cpu: 50m
+            limits:
+              memory: 256Mi
+              cpu: 200m
+        
+        prometheusOperator:
+          enabled: true
+          resources:
+            requests:
+              memory: 256Mi
+              cpu: 100m
+            limits:
+              memory: 512Mi
+              cpu: 500m
+        
+        defaultRules:
+          create: true
+          rules:
+            alertmanager: true
+            etcd: false
+            configReloaders: true
+            general: true
+            k8sContainerCpuUsageSecondsTotal: true
+            k8sContainerMemoryCache: true
+            k8sContainerMemoryRss: true
+            k8sContainerMemorySwap: true
+            k8sContainerResource: true
+            k8sContainerMemoryWorkingSetBytes: true
+            k8sPodOwner: true
+            kubeApiserverAvailability: true
+            kubeApiserverBurnrate: true
+            kubeApiserverHistogram: true
+            kubeApiserverSlos: true
+            kubelet: true
+            kubePrometheusGeneral: true
+            kubePrometheusNodeRecording: true
+            kubernetesApps: true
+            kubernetesResources: true
+            kubernetesStorage: true
+            kubernetesSystem: true
+            kubeStateMetrics: true
+            network: true
+            node: true
+            prometheus: true
+            prometheusOperator: true
+        
+        global:
+          rbac:
+            create: true
+  
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

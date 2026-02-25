@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: ServiceMonitor
+metadata:
+  name: airflow-webserver
+  namespace: monitoring
+  labels:
+    app: airflow
+    component: webserver
+spec:
+  selector:
+    matchLabels:
+      app: airflow
+      component: webserver
+  endpoints:
+  - port: web
+    path: /metrics
+    interval: 30s
+---
+apiVersion: v1
+kind: ServiceMonitor
+metadata:
+  name: airflow-statsd
+  namespace: monitoring
+  labels:
+    app: airflow
+    component: statsd
+spec:
+  selector:
+    matchLabels:
+      app: airflow
+      component: statsd
+  endpoints:
+  - port: statsd
+    path: /metrics
+    interval: 30s

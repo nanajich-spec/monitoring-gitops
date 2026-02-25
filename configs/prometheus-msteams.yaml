@@ -1,0 +1,81 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-msteams-config
+  namespace: monitoring
+data:
+  config.yaml: |
+    connectors:
+    - alertmanager: default
+      teams_webhook_url: https://myadvantest.webhook.office.com/webhookb2/abc559ed-5a14-4890-8f65-e7e8d1f27414@b0de9dff-4833-4d4f-b442-1e0dbfae2ec8/IncomingWebhook/d3a2cd1b62694999982ac8303d9facb2/cc25c079-475a-47ee-bfef-0b06ac15a4ad/V2I_NtY59R7qGhSRQY10oyJKLK7OwXK_g6ieRsfhQ3jmY1
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus-msteams
+  namespace: monitoring
+  labels:
+    app: prometheus-msteams
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus-msteams
+  template:
+    metadata:
+      labels:
+        app: prometheus-msteams
+    spec:
+      containers:
+      - name: prometheus-msteams
+        image: quay.io/prometheusmsteams/prometheus-msteams:v1.5.2
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 2000
+          name: http
+        env:
+        - name: CONFIG_FILE
+          value: /config/config.yaml
+        volumeMounts:
+        - name: config
+          mountPath: /config
+        resources:
+          requests:
+            memory: 64Mi
+            cpu: 50m
+          limits:
+            memory: 128Mi
+            cpu: 200m
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 2000
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 2000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: config
+        configMap:
+          name: prometheus-msteams-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus-msteams
+  namespace: monitoring
+  labels:
+    app: prometheus-msteams
+spec:
+  type: ClusterIP
+  ports:
+  - port: 2000
+    targetPort: 2000
+    protocol: TCP
+    name: http
+  selector:
+    app: prometheus-msteams

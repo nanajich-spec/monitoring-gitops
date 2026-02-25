@@ -34,11 +34,13 @@ spec:
                 matchers:
                 - severity=~"warning|critical"
                 continue: true
+            templates:
+            - '/etc/alertmanager/config/*.tmpl'
             receivers:
             - name: 'null'
             - name: 'teams-notifications'
               webhook_configs:
-              - url: 'https://myadvantest.webhook.office.com/webhookb2/abc559ed-5a14-4890-8f65-e7e8d1f27414@b0de9dff-4833-4d4f-b442-1e0dbfae2ec8/IncomingWebhook/d3a2cd1b62694999982ac8303d9facb2/cc25c079-475a-47ee-bfef-0b06ac15a4ad/V2I_NtY59R7qGhSRQY10oyJKLK7OwXK_g6ieRsfhQ3jmY1'
+              - url: 'http://prometheus-msteams:2000/alertmanager'
                 send_resolved: true
                 http_config:
                   follow_redirects: true

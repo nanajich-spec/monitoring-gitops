@@ -24,7 +24,7 @@ data:
               "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}
             }
           },
-          "gridPos": {"h": 4, "w": 4, "x": 0, "y": 0},
+          "gridPos": {"h": 4, "w": 3, "x": 0, "y": 0},
           "id": 2,
           "options": {
             "colorMode": "value",
@@ -34,8 +34,54 @@ data:
             "textMode": "auto"
           },
           "pluginVersion": "12.4.0",
-          "targets": [{"expr": "count(kube_deployment_labels{namespace=\"airflow\"})", "refId": "A"}],
-          "title": "Total DAG Deployments",
+          "targets": [{"expr": "airflow_dagbag_size", "refId": "A"}],
+          "title": "Total DAGs",
+          "type": "stat"
+        },
+        {
+          "datasource": "Prometheus",
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "thresholds"},
+              "mappings": [],
+              "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}
+            }
+          },
+          "gridPos": {"h": 4, "w": 3, "x": 3, "y": 0},
+          "id": 20,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "area",
+            "orientation": "auto",
+            "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+            "textMode": "auto"
+          },
+          "pluginVersion": "12.4.0",
+          "targets": [{"expr": "increase(airflow_dagrun_duration_success_count[1h])", "refId": "A"}],
+          "title": "Successful DAG Runs (1h)",
+          "type": "stat"
+        },
+        {
+          "datasource": "Prometheus",
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "thresholds"},
+              "mappings": [],
+              "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 1}]}
+            }
+          },
+          "gridPos": {"h": 4, "w": 3, "x": 6, "y": 0},
+          "id": 21,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "area",
+            "orientation": "auto",
+            "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+            "textMode": "auto"
+          },
+          "pluginVersion": "12.4.0",
+          "targets": [{"expr": "sum(increase(airflow_ti_finish{state=\"failed\"}[1h]))", "refId": "A"}],
+          "title": "Failed Tasks (1h)",
           "type": "stat"
         },
         {

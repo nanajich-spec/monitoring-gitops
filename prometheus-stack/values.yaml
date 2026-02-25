@@ -93,6 +93,8 @@ prometheus:
 grafana:
   enabled: true
   adminPassword: admin
+  initChownData:
+    enabled: false
   persistence:
     enabled: true
     size: 10Gi

@@ -1,0 +1,17 @@
+[Unit]
+Description=MicroK8s Cluster Health Check and Auto-Fix
+After=snap.microk8s.daemon-kubelite.service
+Wants=snap.microk8s.daemon-kubelite.service
+
+[Service]
+Type=oneshot
+User=nanaji
+Environment="PATH=/snap/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+Environment="KUBECONFIG=/var/snap/microk8s/current/credentials/client.config"
+ExecStart=/bin/bash /home/nanaji/monitoring-gitops/scripts/startup-health-check.sh
+RemainAfterExit=yes
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

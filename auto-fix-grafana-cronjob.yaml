@@ -1,0 +1,125 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: grafana-auto-fix
+  namespace: monitoring
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: grafana-auto-fix
+  namespace: monitoring
+rules:
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  verbs: ["get", "patch"]
+- apiGroups: ["apps"]
+  resources: ["replicasets"]
+  verbs: ["get", "list", "delete"]
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: grafana-auto-fix
+  namespace: monitoring
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: grafana-auto-fix
+subjects:
+- kind: ServiceAccount
+  name: grafana-auto-fix
+  namespace: monitoring
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: grafana-auto-fix
+  namespace: monitoring
+spec:
+  schedule: "*/5 * * * *"  # Run every 5 minutes
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: grafana-auto-fix
+          restartPolicy: OnFailure
+          containers:
+          - name: fix-grafana
+            image: bitnami/kubectl:latest
+            command:
+            - /bin/bash
+            - -c
+            - |
+              echo "=== Grafana Auto-Fix Script ==="
+              echo "Checking Grafana deployment status..."
+              
+              # Check for failing Grafana pods
+              FAILING_PODS=$(kubectl get pods -n monitoring -l app.kubernetes.io/name=grafana \
+                --field-selector=status.phase!=Running,status.phase!=Succeeded \
+                --no-headers 2>/dev/null | wc -l)
+              
+              if [ "$FAILING_PODS" -gt 0 ]; then
+                echo "Found $FAILING_PODS failing Grafana pod(s). Applying fix..."
+                
+                # Delete failing pods
+                kubectl delete pods -n monitoring -l app.kubernetes.io/name=grafana \
+                  --field-selector=status.phase!=Running,status.phase!=Succeeded \
+                  --ignore-not-found=true
+                
+                # Get the current init container command
+                INIT_CMD=$(kubectl get deployment prometheus-stack-grafana -n monitoring \
+                  -o jsonpath='{.spec.template.spec.initContainers[0].command[0]}' 2>/dev/null || echo "")
+                
+                if [ "$INIT_CMD" = "chown" ]; then
+                  echo "Init container has wrong command. Patching deployment..."
+                  
+                  # Apply the fix
+                  kubectl patch deployment prometheus-stack-grafana -n monitoring --type='json' -p='[
+                    {
+                      "op": "replace",
+                      "path": "/spec/template/spec/initContainers/0/command",
+                      "value": ["sh", "-c", "echo Skipping chown && exit 0"]
+                    }
+                  ]'
+                  
+                  # Ensure sidecars have SKIP_TLS_VERIFY
+                  kubectl patch deployment prometheus-stack-grafana -n monitoring --type='json' -p='[
+                    {
+                      "op": "add",
+                      "path": "/spec/template/spec/containers/1/env/-",
+                      "value": {"name": "SKIP_TLS_VERIFY", "value": "true"}
+                    },
+                    {
+                      "op": "add",
+                      "path": "/spec/template/spec/containers/2/env/-",
+                      "value": {"name": "SKIP_TLS_VERIFY", "value": "true"}
+                    }
+                  ]' 2>/dev/null || echo "Sidecars already have SKIP_TLS_VERIFY"
+                  
+                  echo "Fix applied successfully!"
+                else
+                  echo "Init container already has correct command."
+                fi
+                
+                # Scale down any problematic replica sets
+                for rs in $(kubectl get rs -n monitoring -l app.kubernetes.io/name=grafana \
+                  -o jsonpath='{.items[?(@.status.replicas>0)].metadata.name}'); do
+                  READY=$(kubectl get rs $rs -n monitoring -o jsonpath='{.status.readyReplicas}')
+                  if [ "$READY" = "" ] || [ "$READY" = "0" ]; then
+                    echo "Scaling down problematic replica set: $rs"
+                    kubectl scale rs $rs -n monitoring --replicas=0
+                  fi
+                done
+                
+              else
+                echo "All Grafana pods are healthy. No action needed."
+              fi
+              
+              echo "=== Auto-fix completed ==="
